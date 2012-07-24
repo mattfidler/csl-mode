@@ -6,9 +6,9 @@
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Fri May 18 10:21:34 2012 (-0500)
 ;; Version: 0.01
-;; Last-Updated: Mon Jul 23 20:20:25 2012 (-0500)
+;; Last-Updated: Tue Jul 24 13:50:37 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 181
+;;     Update #: 213
 ;; URL: http://github.com/mlf176f2/csl-mode
 ;; Keywords: CSL, acslX
 ;; Compatibility: Emacs 24
@@ -46,7 +46,7 @@
 ;; Floor, Boston, MA 02110-1301, USA.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 
+;;
 ;;; Code:
 
 (require 'font-lock)
@@ -56,6 +56,13 @@
 
 (defvar csl-keywords nil
   "CSL Keywords")
+
+(defgroup csl-mode nil
+  "Major mode for editing AcslX csl-source files."
+  :group 'languages)
+
+
+
 (setq csl-keywords nil)
 (unless csl-keywords
   (setq csl-keywords
@@ -210,23 +217,38 @@
           (csl-font-lock-constant
            (1 font-lock-variable-name-face)))))
 
+
+(defvar csl-imenu-generic-expression
+  `(("Sections" ,(regexp-opt
+                  '("DISCRETE"
+                    "INITIAL"
+                    "PROGRAM"
+                    "DERIVATIVE"
+                    "TERMINAL"
+                    "DYNAMIC")
+                  'words) 1)
+    ("Variables" "^[ \t]*\\([A-Za-z_][A-Za-z_0-9]*\\)[ \t]*=" 1))
+  "`csl-mode' imenu expression.")
+
 (defvar csl-mode-map nil
   "Keymap used in `csl-mode' buffers.")
+(setq csl-mode-map nil)
 (when (not csl-mode-map)
-  (setq csl-mode-map (make-sparse-keymap)))
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-c\C-l" 'csl-mode-open-in-libero)
+    (setq csl-mode-map map)))
 
-(defun csl-mode ()
+(define-derived-mode csl-mode prog-mode "CSL"
   "Major mode for editing CSL files."
   (interactive)
   ;; set up local variables
-  (kill-all-local-variables)
   
   (set (make-local-variable 'font-lock-defaults)
        '(csl-font-lock-keywords nil t))
   
-  ;;(setq imenu-generic-expression csl-imenu-generic-expression)
   (use-local-map csl-mode-map)
-  ;; (imenu-add-menubar-index)
+  (setq imenu-generic-expression csl-imenu-generic-expression)
+  (imenu-add-menubar-index)
   ;; (make-local-variable 'paragraph-separate)
   ;; (make-local-variable 'paragraph-start)
   (make-local-variable 'require-final-newline)
@@ -240,17 +262,15 @@
   ;; (make-local-variable 'add-log-current-defun-function)
   ;;
   (set-syntax-table csl-mode-syntax-table)
-  (setq major-mode              'csl-mode
-        mode-name               "CSL"
-        paragraph-separate      "^[ \t]*$"
+  (setq paragraph-separate      "^[ \t]*$"
         paragraph-start         "^[ \t]*$"
         require-final-newline   t
         comment-start           "!"
         comment-end             ""
         comment-start-skip      "\\([!]+\\)\\s *"
         comment-column          40)
-  (csl-construct-faces)
-  (run-mode-hooks 'csl-mode-hook))
+  ;;(csl-construct-faces)
+  )
 
 
 (defun csl-last-line-indent-line-p (&optional li-q deindent-q)
@@ -414,6 +434,43 @@
       (indent-line-to fli)
       (when (looking-at "[ \t]*$")
         (goto-char (match-end 0))))))
+;;; Useful commands
+(defcustom csl-libero-path
+  (let (ret)
+    (if (and (eq system-type 'windows-nt)
+             (progn
+               (setq ret (format "%s/AEgis Technologies/acslX/Libero.exe" (getenv "ProgramFiles")))
+               (file-exists-p ret)))
+        (expand-file-name ret)
+      "Libero"))
+  "Program invoked by `csl-mode-open-in-libero'."
+  :type 'string
+  :group 'csl-mode)
+
+
+(defun csl-mode-open-in-libero ()
+  "Opens current buffer in Libero"
+  (interactive)
+  (when (eq system-type 'windows-nt)
+    (let ((file-name (buffer-file-name))
+          (exec-path exec-path)
+          (base-dir (format "%s/AEgis Technologies/acslX/" (getenv "ProgramFiles")))
+          (last-path (getenv "PATH")))
+      (when (file-exists-p base-dir)
+        (setq exe-path `(,(format "%s" base-dir)
+                         ,(format "%smingw32/bin" base-dir)
+                         ,(format "%smingw32/libexec/gcc/mingw32/3.4.2" base-dir)
+                         ,@exec-path))
+        (setenv "PATH" (replace-regexp-in-string "/" "\\\\"
+                                                 (mapconcat
+                                                  (lambda(x) x) exe-path ";")))
+        (start-process "libero" " *Libero*"
+                       csl-libero-path
+                       file-name)))
+    (setenv "PATH" (replace-regexp-in-string
+                    "/" "\\\\"
+                    (mapconcat
+                     (lambda(x) x) exe-path ";")))))
 
 (provide 'csl-mode)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

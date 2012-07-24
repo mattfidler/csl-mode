@@ -1,5 +1,9 @@
-#+TITLE: CSL Modeling Mode
+#+TITLE: Acsl CSL Modeling and M Scripting Mode
 #+AUTHOR: Matthew L. Fidler
 * Introduction
+This is a utility to edit CSL models and M models in emacs.
+**  CSL-mode
 CSL-mode is a major mode to edit acsl CSL model files.  It is
 rudimentary, but it works.
+** M-mode
+M-mode
