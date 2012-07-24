@@ -1,0 +1,4 @@
+#+TITLE: CSL Modeling Mode
+#+AUTHOR: Matthew L. Fidler
+* Introduction
+CSL-mode is a major mode to edit acsIX CSL model files
