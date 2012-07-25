@@ -6,9 +6,9 @@
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Fri May 18 10:21:34 2012 (-0500)
 ;; Version: 0.01
-;; Last-Updated: Tue Jul 24 13:50:37 2012 (-0500)
+;; Last-Updated: Tue Jul 24 20:52:54 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 213
+;;     Update #: 221
 ;; URL: http://github.com/mlf176f2/csl-mode
 ;; Keywords: CSL, acslX
 ;; Compatibility: Emacs 24
@@ -79,6 +79,10 @@
           "GO"
           "TO"
           "DISCRETE"
+          "MACRO"
+          "EXIT"
+          "STANDVAL"
+          "PROCEDURAL"
           "END")))
 
 ;; Constants
@@ -313,6 +317,7 @@
         (eval-when-compile
           (regexp-opt
            '("END"
+             "MACRO END"
              "ENDIF") 'words))))
 
 (defvar csl-indent-deindent-keywords nil
@@ -357,6 +362,8 @@
               "DYNAMIC"
               "DERIVATIVE" ; Should be in Dynamic Section
               "TERMINAL"
+              "PROCEDURAL"
+              "MACRO@)"
               "IF@THEN" ; Only indent if THEN is found at end of line
               ))))))
 
