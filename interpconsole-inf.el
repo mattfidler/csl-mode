@@ -1,14 +1,14 @@
 ;;; interpconsole-inf.el --- Inferior InterpConsole
-;; 
+;;
 ;; Filename: interpconsole-inf.el
 ;; Description:  Inferior InterpConsole
 ;; Author: Matthew L. Fidler
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Tue Jul 24 14:55:54 2012 (-0500)
 ;; Version:  0.01
-;; Last-Updated: Tue Jul 24 17:45:43 2012 (-0500)
+;; Last-Updated: Tue Jul 24 20:34:24 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 91
+;;     Update #: 104
 ;; URL: 
 ;; Keywords: 
 ;; Compatibility: 
@@ -85,6 +85,12 @@ startup."
   :type 'regexp
   :group 'interpconsole-inferior)
 
+(defvar interpconsole-inferior-font-lock-keywords
+  (list
+   (cons interpconsole-inferior-prompt 'font-lock-type-face))
+  ;; Could certainly do more font locking in inferior Octave ...
+  "Additional expressions to highlight in Inferior Octave mode.")
+
 (define-derived-mode interpconsole-inferior-mode comint-mode "Inferior InterpConsole"
   "Major mode for interacting with an inferior InterpConsole process.
 Runs M as a subprocess of Emacs, with M I/O through an Emacs
@@ -160,9 +166,9 @@ the rest to `interpconsole-inferior-output-string'."
   "Tracks `cd' commands issued to the inferior InterpConsole process.
 Use \\[interpconsole-inf-resync-dirs] to resync if Emacs gets confused."
   (cond
-   ((string-match "^[ \t]*cd[ \t;]*$" string)
-    (cd "~"))
-   ((string-match "^[ \t]*cd[ \t]+\\([^ \t\n;]*\\)[ \t\n;]*" string)
+   ((string-match "^[ \t]*cd[ \t]*%[ \t]*$" string)) ; Do nothing for echo
+   ((string-match "^[ \t]*cd[ \t;]*$" string)) ; Also an echo in Acsl
+   ((string-match "^[ \t]*cd[ \t]+[\"']*\\([^ \t\n;]*?\\)[\"']*[ \t\n;]*" string)
     (cd (substring string (match-beginning 1) (match-end 1))))))
 
 (defun interpconsole-inf-resync-dirs ()
@@ -170,7 +176,7 @@ Use \\[interpconsole-inf-resync-dirs] to resync if Emacs gets confused."
 This command queries the inferior InterpConsole process about its current
 directory and makes this the current buffer's default directory."
   (interactive)
-  (interpconsole-inferior-send-list-and-digest '("disp (pwd ())\n"))
+  (interpconsole-inferior-send-list-and-digest '("cd %\n"))
   (cd (car interpconsole-inferior-output-list)))
 
 (defvar interpconsole-inferior-process nil)
@@ -210,9 +216,11 @@ the rest to `comint-output-filter'."
         (last-path (getenv "PATH"))
         (base-dir (if (eq system-type 'windows-nt)
                       (format "%s/AEgis Technologies/acslX/" (getenv "ProgramFiles"))
-                    nil)))
+                    nil))
+        (orig-dir default-directory))
     (when base-dir
       (when (file-exists-p base-dir)
+        (cd base-dir)
         (setq exe-path `(,(format "%s" base-dir)
                          ,(format "%smingw32/bin" base-dir)
                          ,(format "%smingw32/libexec/gcc/mingw32/3.4.2" base-dir)
@@ -225,7 +233,6 @@ the rest to `comint-output-filter'."
                  interpconsole-inferior-buffer
                  interpconsole-inferior-interp-console-program
                  interpconsole-inferior-startup-args)))
-      
       (set-process-filter proc 'interpconsole-inferior-output-digest)
       
       (setq comint-ptyp process-connection-type
@@ -256,7 +263,8 @@ the rest to `comint-output-filter'."
              (file (or interpconsole-inferior-startup-file
                        "~/.emacs-interpconsole")))
         (setq commands
-              (list 
+              (list
+               (concat "cd \"" orig-dir "\"\n")
                (if (file-exists-p file)
                    (format "source (\"%s\");\n" file))))
         (interpconsole-inferior-send-list-and-digest commands))
