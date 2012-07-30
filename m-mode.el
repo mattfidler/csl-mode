@@ -6,9 +6,9 @@
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Tue Jul 24 09:08:47 2012 (-0500)
 ;; Version: 0.01
-;; Last-Updated: Tue Jul 24 12:59:43 2012 (-0500)
+;; Last-Updated: Wed Jul 25 17:58:11 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 40
+;;     Update #: 61
 ;; URL:
 ;; Keywords: 
 ;; Compatibility: 
@@ -47,6 +47,20 @@
 
 (require 'octave-mod nil t)
 (require 'octave-mode nil t)
+(add-to-list 'load-path
+             (file-name-directory (or load-file-name buffer-file-name)))
+
+;;;###autoload
+(setq auto-mode-alist (append '(("\\.\\([Mm]\\)$" .
+                                 m-mode-select)) auto-mode-alist))
+
+(defun m-mode-select ()
+  "Select if m-mode should run."
+  (interactive)
+  (let ((csl-files (directory-files (file-name-directory (buffer-file-name)) nil "\\.\\(csl\\|mc\\)$")))
+    (if (not (= 0 (length csl-files)))
+        (m-mode)
+      (octave-mode))))
 
 (defgroup m-mode nil
   "Major mode for editing AcslX m-source files."
@@ -95,9 +109,7 @@
       (emacs-lisp-mode)
       (indent-region (point-min) (point-max)))))
 
-(load (concat
-       (expand-file-name "m-builtin.el"
-                         (file-name-directory (or load-file-name buffer-file-name)))))
+(require 'm-builtin)
 
 (defun m-mode-@-font-lock (limit)
   "@ switch font-lock."
@@ -107,7 +119,7 @@
 
 (defvar m-font-lock-keywords nil
   "`m-mode' font-lock definitions, different from `octave-mode'.")
-(setq m-font-lock-keywords nil)
+
 (unless m-font-lock-keywords
   (setq m-font-lock-keywords
         `((,(eval-when-compile (regexp-opt m-builtin 'words))
@@ -115,6 +127,14 @@
           (m-mode-@-font-lock
            (1 font-lock-keyword-face))
           ,@octave-font-lock-keywords)))
+
+(defvar m-mode-map nil
+  "`m-mode' keymap")
+(setq m-mode-map nil)
+(unless m-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-c\C-l" 'csl-mode-open-in-libero)
+    (setq m-mode-map map)))
 
 ;;; Completions
 (defun m-initialize-completions ()
@@ -143,8 +163,10 @@
 
 ;;; Mode definition
 
-(define-derived-mode m-mode m-mode "M"
+(define-derived-mode m-mode octave-mode "M"
   "M-mode for editing Acsl m-files."
+  (use-local-map m-mode-map)
+  (m-initialize-completions)
   (set (make-local-variable 'font-lock-defaults)
        '(m-font-lock-keywords))
   (add-hook 'completion-at-point-functions

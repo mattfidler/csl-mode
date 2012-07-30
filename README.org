@@ -2,8 +2,81 @@
 #+AUTHOR: Matthew L. Fidler
 * Introduction
 This is a utility to edit CSL models and M models in emacs.
-**  CSL-mode
+** CSL-mode
 CSL-mode is a major mode to edit acsl CSL model files.  It is
 rudimentary, but it works.
+
+This has been tested under emacs for windows, and may work under emacs
+for Linux assuming Acsl is installed under Linux.  
+
+Currently, the features of this mode are:
+
+- Supports Code Indention
+  - May be automatically indented with additional minor modes such as
+    [[https://github.com/mlf176f2/auto-indent-mode.el/][auto-indent-mode]].
+- Auto-completion
+- Code Highlighting
+- Code Compilation
+  - To compile the code type Control-c Control-c.  If the model is up
+    to date, then no additional compilation will occur.
+  - To force the re-compilation of CSL-code, type Control-u Control-c
+    Control-c.  This will first clean out any dependencies and then
+    recompile the code.
+- Opening the CSL file in Libero
+  - This can be accomplished by typing Control-c, Control-l.
 ** M-mode
-M-mode
+M-mode is similar to Matlab and Octave.  Hence this is a derived mode
+based on octave-mode (which is included in the most recent version of
+Emacs)
+
+The differences are:
+- Additional m-mode keywords are highlighted and completed
+- Selects octave-mode or m-mode based on conditions
+  - If any =.csl= or =.mc= files are in the current directory, then
+    the language is assumed to be in =m-mode=.
+  - Otherwise, the =.m= buffer is assumed to be an =octave= buffer.
+- Allows inferior access to Acsl's Interpretive Console.  This is
+  based on Octave's inferior mode, with exceptions to allow Acsl's
+  console to function correctly.
+  - Note that the Acsl's interpretive console *does not* support
+    Acsl's nice graphics/plots. Also Libero does not currently support
+    opening m-files directly;  Therefore, while you may edit the
+    m-files in emacs, the graphics are not easily available.
+** MC-mode
+MC-mode is a derivative of =m-mode= with additional keywords for the
+simulation language.  
+
+When compiling the =mc= language file to a standard =m= language file,
+a set of default options are created.  The basic settings options are
+described in the following table:
+
+|----------------+---------------------------------------------------------------|
+| Option         | Description                                                   |
+|----------------+---------------------------------------------------------------|
+| IsAdaptive     | Should the variance of the MCMC simulation be adaptive (T/F)? |
+| LoggingPeriod  | How many iterations before the chain is saved?                |
+| NumChains      | Number of chains to compute                                   |
+| NumIterations  | Number of Iterations                                          |
+| ThinningFactor | Thinning Factor                                               |
+| UpdateMode     | Specifies the MCM Sampling mode to use                        |
+| VerboseOutput  | Should the output be verbose                                  |
+|----------------+---------------------------------------------------------------|
+
+Other settings can be determined by customizing =mc-mode= (i.e. M-x
+customize-group mc-mode).
+
+When trying to set these to another value other than the default, you
+can specify them in the comment of a =mc-mode= file.  For example
+
+#+BEGIN_SRC mc
+% NumIteratsions = 10000, VerboseOutput:  True
+#+END_SRC
+Changes the default options to the Number of iteratios is 10000 and
+the verbose output to be turned on.  These options can be separated by
+an equals sign, colon, or spaces.
+
+This is an emacs-only way to set these options.  In the background,
+=mc-mode= creates a =mcx= file on save that specify the default options
+or the options found in the comments.
+
+

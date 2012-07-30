@@ -6,9 +6,9 @@
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Fri May 18 10:21:34 2012 (-0500)
 ;; Version: 0.01
-;; Last-Updated: Tue Jul 24 20:52:54 2012 (-0500)
+;; Last-Updated: Wed Jul 25 11:01:56 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 221
+;;     Update #: 275
 ;; URL: http://github.com/mlf176f2/csl-mode
 ;; Keywords: CSL, acslX
 ;; Compatibility: Emacs 24
@@ -50,20 +50,22 @@
 ;;; Code:
 
 (require 'font-lock)
+(add-to-list 'load-path
+             (file-name-directory (or load-file-name buffer-file-name)))
+(require 'm-mode)
+(require 'interpconsole-inf)
+
 ;;;###autoload
 (setq auto-mode-alist (append '(("\\.\\([Cc][Ss][Ll]\\)$" .
                                  csl-mode)) auto-mode-alist))
-
-(defvar csl-keywords nil
-  "CSL Keywords")
 
 (defgroup csl-mode nil
   "Major mode for editing AcslX csl-source files."
   :group 'languages)
 
 
-
-(setq csl-keywords nil)
+(defvar csl-keywords nil
+  "CSL Keywords")
 (unless csl-keywords
   (setq csl-keywords
         '("PROGRAM"
@@ -127,13 +129,10 @@
       (insert "\n;;; end of csl-builtin.el\n"))))
 
 ;; csl-builtin
-(load (concat
-       (expand-file-name "csl-builtin.el"
-                         (file-name-directory (or load-file-name buffer-file-name)))))
+(require 'csl-builtin)
 
 (defvar csl-mode-syntax-table nil
   "`csl-mode' syntax table")
-(setq csl-mode-syntax-table nil)
 (unless csl-mode-syntax-table
   (setq csl-mode-syntax-table (make-syntax-table))
   (modify-syntax-entry ?\( "()" csl-mode-syntax-table)
@@ -200,7 +199,6 @@
 
 (defvar csl-font-lock-keywords nil
   "`csl-mode' font-lock keywords")
-(setq csl-font-lock-keywords nil)
 (unless csl-font-lock-keywords
   (setq csl-font-lock-keywords
         `(
@@ -240,6 +238,7 @@
 (when (not csl-mode-map)
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-l" 'csl-mode-open-in-libero)
+    (define-key map "\C-c\C-c" 'csl-mode-compile)
     (setq csl-mode-map map)))
 
 (define-derived-mode csl-mode prog-mode "CSL"
@@ -311,7 +310,6 @@
 
 (defvar csl-end-keywords nil
   "Deindent keywords for CSL")
-(setq csl-end-keywords nil)
 (unless csl-end-keywords
   (setq csl-end-keywords
         (eval-when-compile
@@ -322,8 +320,6 @@
 
 (defvar csl-indent-deindent-keywords nil
   "Keywords that deindent for a line and reindent for a line.  An ELSE statement.")
-
-(setq csl-indent-deindent-keywords nil)
 (unless csl-indent-deindent-keywords
   (setq csl-indent-deindent-keywords
         (eval-when-compile
@@ -337,7 +333,6 @@
 
 (defvar csl-start-keywords nil
   "Keywords that when starting a line indents a line")
-(setq csl-start-keywords nil)
 (unless csl-start-keywords
   (setq csl-start-keywords
         (eval-when-compile
@@ -349,8 +344,6 @@
 
 (defvar csl-indent-keywords nil
   "Keywords that indent.")
-
-(setq csl-indent-keywords nil)
 (unless csl-indent-keywords
   (setq csl-indent-keywords
         (eval-when-compile
@@ -474,6 +467,74 @@
         (start-process "libero" " *Libero*"
                        csl-libero-path
                        file-name)))
+    (setenv "PATH" (replace-regexp-in-string
+                    "/" "\\\\"
+                    (mapconcat
+                     (lambda(x) x) exe-path ";")))))
+
+(defun csl-mode-makefile ()
+  "Creates Makefile based on current CSL file"
+  (let ((file-name (buffer-file-name))
+        (base-dir (format "%s/AEgis Technologies/acslX/" (getenv "ProgramFiles")))
+        w32-base-dir)
+    (setq w32-base-dir base-dir)
+    (setq w32-file-name file-name)
+    (when (eq system-type 'windows-nt)
+      (setq w32-base-dir
+            (replace-regexp-in-string
+             "/" "\\\\"
+             (w32-short-file-name base-dir)))
+      (setq w32-file-name
+            (replace-regexp-in-string
+             "/" "\\\\"
+             (w32-short-file-name file-name))))
+    (with-temp-file "makefile"
+      (insert (format "ACSLXTREME_SETUP = %ssetup.in\n" w32-base-dir))
+      (insert (format "AXLITEPATH = %s\n" (substring w32-base-dir 0 -1)))
+      (insert (format "MODEL_NAME = %s\n"
+                      (file-name-sans-extension
+                       (file-name-nondirectory w32-file-name))))
+      (insert (format "MODEL_DIR = %s\n"
+                      (substring
+                       (replace-regexp-in-string
+                        "/" "\\\\"
+                        (file-name-directory w32-file-name)) 0 -1)))
+      (insert (format "TARGET_FULL = %s.dll\n"
+                      (file-name-sans-extension
+                       (file-name-nondirectory file-name))))
+      (insert (format "MODEL_RRR_FULL = %s.rrr\n"
+                      (file-name-sans-extension
+                       (file-name-nondirectory file-name))))
+      (insert (format "include %smakedefs\n" w32-base-dir)))))
+
+(defun csl-mode-compile (&optional force)
+  "Compile CSL model"
+  (interactive "P")
+  (when (eq system-type 'windows-nt)
+    (let ((file-name (buffer-file-name))
+          (exec-path exec-path)
+          (base-dir (format "%s/AEgis Technologies/acslX/" (getenv "ProgramFiles")))
+          (last-path (getenv "PATH")))
+      (when (file-exists-p base-dir)
+        (setq base-dir (w32-short-file-name base-dir))
+        (setq exe-path `(,(format "%s" base-dir)
+                         ,(format "%smingw32/bin" base-dir)
+                         ,(format "%smingw32/libexec/gcc/mingw32/3.4.2" base-dir)
+                         ,@exec-path))
+        (setenv "PATH" (replace-regexp-in-string "/" "\\\\"
+                                                 (mapconcat
+                                                  (lambda(x) x) exe-path ";")))
+        (csl-mode-makefile)
+        (get-buffer-create "*CSL-Make*")
+        (switch-to-buffer-other-window "*CSL-Make*")
+        (insert (format "Build %s%s\n" file-name (if force " (forced)" "")))
+        (insert (make-string 80 ?=))
+        (insert "\n")
+        (cd (file-name-directory file-name))
+        (when force
+          (shell-command-to-string "make clean"))
+        (start-process "csl-make" "*CSL-Make*"
+                       "make")))
     (setenv "PATH" (replace-regexp-in-string
                     "/" "\\\\"
                     (mapconcat

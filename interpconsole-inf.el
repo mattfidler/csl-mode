@@ -6,9 +6,9 @@
 ;; Maintainer: Matthew L. Fidler
 ;; Created: Tue Jul 24 14:55:54 2012 (-0500)
 ;; Version:  0.01
-;; Last-Updated: Tue Jul 24 20:34:24 2012 (-0500)
+;; Last-Updated: Wed Jul 25 10:14:35 2012 (-0500)
 ;;           By: Matthew L. Fidler
-;;     Update #: 104
+;;     Update #: 110
 ;; URL: 
 ;; Keywords: 
 ;; Compatibility: 
@@ -131,13 +131,14 @@ Additional commands to be executed on startup can be provided either in
 the file specified by `interpconsole-inferior-startup-file' or by the default
 startup file, `~/.emacs-interpconsole'."
   (interactive "P")
-  (let ((buffer interpconsole-inferior-buffer))
+  (let ((buffer interpconsole-inferior-buffer)
+        (orig-dir (file-name-directory (or (buffer-file-name) default-directory))))
     (get-buffer-create buffer)
     (if (comint-check-proc buffer)
         ()
       (with-current-buffer buffer
         (comint-mode)
-        (interpconsole-inferior-startup)
+        (interpconsole-inferior-startup orig-dir)
         (interpconsole-inferior-mode)))
     (if (not arg)
         (pop-to-buffer buffer))))
@@ -210,14 +211,14 @@ Ring Emacs bell if process output starts with an ASCII bell, and pass
 the rest to `comint-output-filter'."
   (comint-output-filter proc (inferior-octave-strip-ctrl-g string)))
 
-(defun interpconsole-inferior-startup ()
+(defun interpconsole-inferior-startup (&optional dir)
   "Start Inferior InterpConsole"
   (let ((exec-path exec-path)
         (last-path (getenv "PATH"))
         (base-dir (if (eq system-type 'windows-nt)
                       (format "%s/AEgis Technologies/acslX/" (getenv "ProgramFiles"))
                     nil))
-        (orig-dir default-directory))
+        (orig-dir (or dir default-directory)))
     (when base-dir
       (when (file-exists-p base-dir)
         (cd base-dir)
